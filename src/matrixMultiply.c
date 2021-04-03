@@ -1,7 +1,13 @@
 #include <emscripten/emscripten.h>
+#include <stdlib.h>
 
 EMSCRIPTEN_KEEPALIVE float *matrixMultiply(float *arg1, float *arg2, float *result, int length)
 {
+    for (unsigned int i = 0; i < length * length; i++)
+    {
+        result[i] = 0;
+    }
+
     // TODO: figure out the memory thing
     for (unsigned int i = 0; i < length; i++)
     {
@@ -11,8 +17,7 @@ EMSCRIPTEN_KEEPALIVE float *matrixMultiply(float *arg1, float *arg2, float *resu
 
             for (unsigned int k = 0; k < length; k++)
             {
-
-                result[i * length + j] += (arg1[i * length + k] * arg2[j * length + k]);
+                result[i * length + j] += (arg1[i * length + k] * arg2[k * length + j]);
             }
         }
     }
