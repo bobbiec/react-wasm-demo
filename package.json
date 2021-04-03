@@ -21,7 +21,8 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "ignorePatterns": ["src/matrixMultiply.mjs"]
   },
   "browserslist": {
     "production": [

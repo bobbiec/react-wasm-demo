@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # webasm output
-src/matrixMultiply.js
+src/matrixMultiply.mjs
 src/matrixMultiply.wasm
 
 

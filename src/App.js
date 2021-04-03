@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { wasm } from "./matrixMultiply";
+import Module from "./matrixMultiply.mjs";
 
 function App() {
-  const [matrixMultiply, setMatrixMultiply] = useState();
   const [add, setAdd] = useState();
   useEffect(() => {
-    // load the WebAssembly module
-    const wasmCode = new Uint8Array(wasm.length);
-    for (var i in wasm) {
-      wasmCode[i] = wasm.charCodeAt(i);
-    }
-    WebAssembly.instantiate(wasmCode).then((obj) => {
-      setMatrixMultiply(() => obj.instance.exports.matrixMultiply);
-      setAdd(() => obj.instance.exports.add);
+    Module().then((myModule) => {
+      // need to use callback form (() => function) to ensure that `add` is set to the function
+      // if you use setX(myModule.cwrap(...)) then React will try to set newX = myModule.cwrap(currentX), which is wrong
+      setAdd(() => myModule.cwrap("add", "number", ["number", "number"]));
     });
   }, []);
 
-  if (!add || !matrixMultiply) {
+  if (!add) {
     return "Loading webassembly...";
   }
 
