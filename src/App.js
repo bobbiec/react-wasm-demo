@@ -1,29 +1,31 @@
 import React, { useState, useEffect } from "react";
-import Module from "./matrixMultiply.mjs";
+import createModule from "./matrixMultiply.mjs";
 
-function wrapMatrixMultiply(myModule) {
+function wrapMatrixMultiply(Module) {
+  // JS-friendly wrapper around the WASM call
   return function (firstMatrix, secondMatrix) {
+    // multiplies two square matrices (as 2-D arrays) of the same size and returns the result
     const length = firstMatrix.length;
 
     // set up input arrays with the input data
     const flatFirst = new Float32Array(firstMatrix.flat());
     const flatSecond = new Float32Array(secondMatrix.flat());
-    const buffer1 = myModule._malloc(
+    const buffer1 = Module._malloc(
       flatFirst.length * flatFirst.BYTES_PER_ELEMENT
     );
-    const buffer2 = myModule._malloc(
+    const buffer2 = Module._malloc(
       flatSecond.length * flatSecond.BYTES_PER_ELEMENT
     );
-    myModule.HEAPF32.set(flatFirst, buffer1 >> 2);
-    myModule.HEAPF32.set(flatSecond, buffer2 >> 2);
+    Module.HEAPF32.set(flatFirst, buffer1 >> 2);
+    Module.HEAPF32.set(flatSecond, buffer2 >> 2);
 
     // allocate memory for the result array
-    const resultBuffer = myModule._malloc(
+    const resultBuffer = Module._malloc(
       flatFirst.length * flatFirst.BYTES_PER_ELEMENT
     );
 
     // make the call
-    const resultPointer = myModule.ccall(
+    const resultPointer = Module.ccall(
       "matrixMultiply",
       "number",
       ["number", "number", "number", "number"],
@@ -34,7 +36,7 @@ function wrapMatrixMultiply(myModule) {
     const resultFlatArray = [];
     for (let i = 0; i < length ** 2; i++) {
       resultFlatArray.push(
-        myModule.HEAPF32[resultPointer / Float32Array.BYTES_PER_ELEMENT + i]
+        Module.HEAPF32[resultPointer / Float32Array.BYTES_PER_ELEMENT + i]
       );
     }
 
@@ -43,9 +45,9 @@ function wrapMatrixMultiply(myModule) {
     while (resultFlatArray.length) {
       result.push(resultFlatArray.splice(0, length));
     }
-    myModule._free(buffer1);
-    myModule._free(buffer2);
-    myModule._free(resultBuffer);
+    Module._free(buffer1);
+    Module._free(buffer2);
+    Module._free(resultBuffer);
     return result;
   };
 }
@@ -56,11 +58,11 @@ function App() {
   useEffect(
     // useEffect here is roughly equivalent to putting this in componentDidMount for a class component
     () => {
-      Module().then((myModule) => {
+      createModule().then((Module) => {
         // need to use callback form (() => function) to ensure that `add` is set to the function
         // if you use setX(myModule.cwrap(...)) then React will try to set newX = myModule.cwrap(currentX), which is wrong
-        setAdd(() => myModule.cwrap("add", "number", ["number", "number"]));
-        setMatrixMultiply(() => wrapMatrixMultiply(myModule));
+        setAdd(() => Module.cwrap("add", "number", ["number", "number"]));
+        setMatrixMultiply(() => wrapMatrixMultiply(Module));
       });
     },
     []
