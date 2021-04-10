@@ -34,7 +34,7 @@ At localhost:3000 (which should be automatically opened by `npm start`), you wil
 4. Import `createModule` from the .mjs file in App.js, instantiate it (which returns a Promise), and resolve the Promise to do things with the resulting module (`Module` in App.js).
 
 All the interesting code is in `src/matrixMultiply.c` and `App.js`.
-The Makefile shows how to compile the .c file in the .mjs file.
+The Makefile shows how to compile the .c file into the .mjs file.
 The ESLint config change is just required to build the app.
 
 ## Extending
@@ -43,7 +43,7 @@ To make changes to the React code, edit `App.js`.
 
 To make changes to the C code, edit `matrixMultiply.c` and run `make` again.
 
-You can play with the `emcc` command if you need something else from the compiler (`make -B` is useful to force re-run the command).
+You can play with the `emcc` command if you need something else from the compiler (`make -B` is useful to force re-run the command during development).
 
 ## Caveats
 
@@ -121,6 +121,8 @@ src/matrixMultiply.mjs: src/matrixMultiply.c
 
 Let's go line-by-line.
 
+-------
+
 ```
 emcc --no-entry src/matrixMultiply.c -o src/matrixMultiply.mjs  \
 ```
@@ -130,14 +132,18 @@ emcc --no-entry src/matrixMultiply.c -o src/matrixMultiply.mjs  \
 `--no-entry` is an argument for the linker `wasm-ld` that says we do not have an entrypoint (by default, the main() function).
 This is because we basically have a library that we are just picking functions out of.
 
+-------
+
 ```
 -s ENVIRONMENT='web'  \
 ```
 
-The -s options are documented only in the [source settings.js](https://github.com/emscripten-core/emscripten/blob/main/src/settings.js) file, not anywhere on the docs site.
+All of the `-s` options are documented only in the [settings.js source code](https://github.com/emscripten-core/emscripten/blob/main/src/settings.js), not anywhere on the docs site.
 
 Here we want to run in the normal web environment for our React app.
 So, we disable the environments for webview, web worker, Node.js, and JS shell because we will never run there.
+
+-------
 
 ```
 -s SINGLE_FILE=1  \
@@ -146,9 +152,10 @@ So, we disable the environments for webview, web worker, Node.js, and JS shell b
 This option inlines the .wasm file into the .mjs file, as the base64 string `wasmBinaryFile`.
 This is the main change that allows us to run our code without changing the webpack configuration.
 
+-------
+
 ```
 -s EXPORT_NAME='createModule'  \
--s USE_ES6_IMPORT_META=0  \
 ```
 
 Since we set the output type as `.mjs` above, emcc will [automatically set MODULARIZE=1 and EXPORT_ES6=1](https://github.com/emscripten-core/emscripten/blob/5f45300c9997d5f13f6f8c008e91c8cf5ba74399/emcc.py#L1215-L1217).
@@ -166,6 +173,8 @@ myModule.ccall(/* or whatever */);
 
 So instead, we follow [the advice in the FAQ](https://emscripten.org/docs/getting_started/FAQ.html?highlight=modularize#how-can-i-tell-when-the-page-is-fully-loaded-and-it-is-safe-to-call-compiled-functions) to rename it to `createModule`.
 
+-------
+
 ```
 -s USE_ES6_IMPORT_META=0  \
 ```
@@ -180,6 +189,8 @@ This caused my webpack to error out with `Module parse failed: Unexpected token`
 
 ^ This diff shows the change when setting that flag to 0.
 
+-------
+
 ```
 -s EXPORTED_FUNCTIONS='["_add", "_matrixMultiply", "_malloc", "_free"]'  \
 ```
@@ -187,6 +198,8 @@ This caused my webpack to error out with `Module parse failed: Unexpected token`
 Exporting these C function names [ensures that they will not be optimized out](https://emscripten.org/docs/getting_started/FAQ.html?highlight=exported_functions#why-do-functions-in-my-c-c-source-code-vanish-when-i-compile-to-javascript-and-or-i-get-no-functions-to-process).
 Actually, since we have `EMSCRIPTEN_KEEPALIVE` on `add` and `matrixMultiply`, we technically don't need these here.
 But I think it's nice to have explicit reminders of what these functions are, plus it adds a little snippet that aborts with error if you mistakenly call `._add()` or `._matrixMultiply()` on the Promise (as opposed to the Module that the Promise resolves to).
+
+-------
 
 ```
 -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
@@ -196,6 +209,8 @@ These are the standard ways to call compiled C functions from Javascript.
 In the example App.js, we use `cwrap` to get functions that we can call again later.
 We could also use `ccall` to make a single call to the function.
 See [Emscripten docs](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html?highlight=ccall#interacting-with-code-ccall-cwrap) for more info.
+
+-------
 
 ### Other helpful resources
 
