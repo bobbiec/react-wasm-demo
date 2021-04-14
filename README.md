@@ -1,6 +1,6 @@
-# React WASM demo
+# React C/C++ WASM demo
 
-This project is a minimal [create-react-app](https://create-react-app.dev/) project that demonstrates how to compile WebAssembly into an ES6 module and use it in a create-react-app React app (without having to eject).
+This project is a minimal [create-react-app](https://create-react-app.dev/) project that demonstrates how to compile C/C++ code into an ES6 WebAssembly module and use it in a create-react-app React app (without having to eject).
 
 This is useful for getting native performance out of a computation-heavy part of a React app - for example, scientific/engineering simulations, video processing, or any other [WebAssembly Use Case](https://webassembly.org/docs/use-cases/).
 
@@ -16,6 +16,11 @@ This is useful for getting native performance out of a computation-heavy part of
     - [Other helpful resources](#other-helpful-resources)
 
 ## How to run
+Prerequisites:
+
+- [npm](https://www.npmjs.com/get-npm)
+- [Emscripten toolchain](https://emscripten.org/docs/getting_started/index.html)
+- GNU `make`
 
 Run `make`.
 
@@ -215,3 +220,4 @@ See [Emscripten docs](https://emscripten.org/docs/porting/connecting_cpp_and_jav
 ### Other helpful resources
 
 - The memory management code in `wrapMatrixMultiply` is pretty tedious - Dan Ruta's post on [Passing and returning WebAssembly array parameters](https://becominghuman.ai/passing-and-returning-webassembly-array-parameters-a0f572c65d97) was helpful to me, and their package [wasm-arrays](https://github.com/DanRuta/wasm-arrays) looks useful for 1-D arrays.
+- It looks like [Parcel has a great story around WebAssembly integration](https://parceljs.org/webAssembly.html). I haven't personally tried it yet, but I think it's definitely worth considering (especially if you're not already using create-react-app).
