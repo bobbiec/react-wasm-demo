@@ -5,4 +5,5 @@ src/matrixMultiply.mjs: src/matrixMultiply.c
 	  -s EXPORT_NAME='createModule'  \
 	  -s USE_ES6_IMPORT_META=0  \
 	  -s EXPORTED_FUNCTIONS='["_add", "_matrixMultiply", "_malloc", "_free"]'  \
-	  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
+	  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'  \
+	  -O3

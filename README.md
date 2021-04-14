@@ -121,7 +121,8 @@ src/matrixMultiply.mjs: src/matrixMultiply.c
 	  -s EXPORT_NAME='createModule'  \
 	  -s USE_ES6_IMPORT_META=0  \
 	  -s EXPORTED_FUNCTIONS='["_add", "_matrixMultiply", "_malloc", "_free"]'  \
-	  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
+	  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'  \
+     -O3
 ```
 
 Let's go line-by-line.
@@ -207,13 +208,22 @@ But I think it's nice to have explicit reminders of what these functions are, pl
 -------
 
 ```
--s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
+-s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'  \
 ```
 
 These are the standard ways to call compiled C functions from Javascript.
 In the example App.js, we use `cwrap` to get functions that we can call again later.
 We could also use `ccall` to make a single call to the function.
 See [Emscripten docs](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html?highlight=ccall#interacting-with-code-ccall-cwrap) for more info.
+
+-------
+
+```
+-O3
+```
+
+This flag optimizes the compiled code to make it load and run faster.
+See Emscripten docs on [Optimizing Code](https://emscripten.org/docs/optimizing/Optimizing-Code.html) for details.
 
 -------
 
