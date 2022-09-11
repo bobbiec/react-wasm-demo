@@ -2,7 +2,7 @@
 
 # webasm output
 src/matrixMultiply.mjs
-src/matrixMultiply.wasm
+public/matrixMultiply.wasm
 
 
 # dependencies

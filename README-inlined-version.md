@@ -1,3 +1,10 @@
+This is the original README, which used `-s SINGLE_FILE=1` to in-line the generated WASM into the `.mjs` file.
+This results in an overhead in file size.
+
+The main README describes a better solution that I found later.
+
+---
+
 # React C/C++ WASM demo
 
 This project is a minimal [create-react-app](https://create-react-app.dev/) project that demonstrates how to compile C/C++ code into an ES6 WebAssembly module and use it in a create-react-app React app (without having to eject).
@@ -10,6 +17,7 @@ This is useful for getting native performance out of a computation-heavy part of
 - [How to run](#how-to-run)
 - [How to get here from a fresh create-react-app](#how-to-get-here-from-a-fresh-create-react-app)
 - [Extending](#extending)
+- [Caveats](#caveats)
 - [Notes](#notes)
   - [Motivation](#motivation)
   - [How I got here](#how-i-got-here)
@@ -35,7 +43,7 @@ At localhost:3000 (which should be automatically opened by `npm start`), you wil
 ## How to get here from a fresh create-react-app
 
 1. Add `src/matrixMultiply.c`
-2. Add Makefile with command to compile `src/matrixMultiply.mjs` (and move `matrixMultiply.wasm` into the `public` folder)
+2. Add Makefile with command to compile `src/matrixMultiply.mjs`
 3. Add `"ignorePatterns": ["src/matrixMultiply.mjs"]` to `eslintConfig` in package.json
    - This is required because the ES6 module (`.mjs` file) fails linting
 4. Import `createModule` from the .mjs file in App.js, instantiate it (which returns a Promise), and resolve the Promise to do things with the resulting module (`Module` in App.js).
@@ -51,6 +59,13 @@ To make changes to the React code, edit `App.js`.
 To make changes to the C code, edit `matrixMultiply.c` and run `make` again.
 
 You can play with the `emcc` command if you need something else from the compiler (`make -B` is useful to force re-run the command during development).
+
+## Caveats
+
+1. If you use this, your app will probably be bigger and might load slower.
+   Compiling to single-file .mjs in-lines the WASM content as base64 in the variable `wasmBinaryFile`.
+   Base64 encoding adds an overhead of 33% in file size; this will also be loaded with your app instead of being fetched asynchronously.
+   Maybe this is fine for you, if you need the WebAssembly to do anything.
 
 ## Notes
 
@@ -69,12 +84,7 @@ Matrix multiply felt like an ideal use case for WebAssembly: a highly numerical,
 - Using `react-app-rewired` or `craco` to mess with webpack without ejecting
 - Hosting the .wasm file somewhere else entirely and fetching it
 
-Eventually I ended up with the solution shown in [README-inlined-version.md](README-inlined-version.md), which inlines the WASM into the `.mjs` file.
-That's not ideal because the WASM binary is Base64-encoded, which makes files larger.
-
-(Then over over a year later, I realized there's a better way to do it entirely by using the `--pre-js` option to read the WASM file out of the `public` folder, which serves the file directly.
-Thanks Evangelos for helping me figure this out.)
-
+Eventually I ended up with the solution shown here.
 Compared against the original implementation with [math.js](https://mathjs.org/), our WASM naive matrix multiply at -O0 (no optimization) was ~50% (1.5x) faster in Chrome and ~5,000% faster (51x) faster in Safari (\*).
 It got 10x faster again at -O3, which gave us a new performance bottleneck in a pure JS matrix inversion!
 There is a lot more performance to squeeze out: this matrix multiply implementation can get a lot faster (as any [213/CS:APP](http://csapp.cs.cmu.edu/) student would know from Cache Lab), and we can continue to move more work into the WASM module.
@@ -94,7 +104,7 @@ So, initially I would generate an .wasm file, and use the approach from [sipavlo
 This worked well for my simple "add two integers" function.
 But I ran into issues when I needed methods on the `Module` object to work with memory to pass around arrays for matrixMultiply.
 
-Eventually I figured out `emcc` can directly generate ES6 Javascript modules, with base64-inlined code.
+Eventually I figured out `emcc` can directly generate ES6 Javascript modules, with base64-inlined code!
 
 ```
 -o <target>
@@ -105,11 +115,9 @@ Eventually I figured out `emcc` can directly generate ES6 Javascript modules, wi
 ```
 
 Starting from [this cryptic note in the emcc docs](https://emscripten.org/docs/tools_reference/emcc.html), I tried and failed a bunch of times.
-With the help of Github issues and source code, I eventually ended up with the command in the [README-inlined-version.md](README-inlined-version.md).
+With the help of Github issues and source code, I eventually ended up with the command in the Makefile (which is explained line-by-line in the next section).
 
-Then I ran into a similar issue related to loading `.data` files for the WASM virtual filesystem.
-For some reason this made me remember the `public` file exists, and I spent some time reading through the `prettier`-formatted `.mjs` file to see where I could tweak the path that the WASM file is loaded from.
-It wasn't very hard to search for a literal `.wasm`, which led me to `locateFile` and the solution described here.
+Honestly I might be missing something, but I'll try writing this up and contributing back to docs and hopefully someone can check it.
 
 ### Explaining the emcc compiler invocation
 
@@ -118,14 +126,13 @@ The Makefile target has this command to generate the target `src/matrixMultiply.
 ```
 src/matrixMultiply.mjs: src/matrixMultiply.c
 	emcc --no-entry src/matrixMultiply.c -o src/matrixMultiply.mjs  \
-	  --pre-js src/locateFile.js  \
 	  -s ENVIRONMENT='web'  \
+	  -s SINGLE_FILE=1  \
 	  -s EXPORT_NAME='createModule'  \
 	  -s USE_ES6_IMPORT_META=0  \
 	  -s EXPORTED_FUNCTIONS='["_add", "_matrixMultiply", "_malloc", "_free"]'  \
 	  -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'  \
-	  -O3
-	mv src/matrixMultiply.wasm public/matrixMultiply.wasm
+     -O3
 ```
 
 Let's go line-by-line.
@@ -140,23 +147,6 @@ emcc --no-entry src/matrixMultiply.c -o src/matrixMultiply.mjs  \
 
 `--no-entry` is an argument for the linker `wasm-ld` that says we do not have an entrypoint (by default, the main() function).
 This is because we basically have a library that we are just picking functions out of.
-
----
-
-```
---pre-js src/locateFile.js  \
-```
-
-This uses `emcc`'s [`--pre-js`](https://emscripten.org/docs/tools_reference/emcc.html#emcc-pre-js) function to override the behavior of the `locateFile` function, as described here:
-
-```javascript
-oldLocateFile = (path, scriptDirectory) => scriptDirectory + path;
-newLocateFile = (path, scriptDirectory_unused) => path;
-```
-
-This function determines the location of the `.wasm` file that is fetched.
-With the old implementation, it expects `./static/js`, where `create-react-app` places the `bundle.js` created from the Javascript in `src`.
-But because of the `webpack` pain mentioned above, we'd rather look in the root directory, where unmodified `public` files go.
 
 ---
 
@@ -244,15 +234,6 @@ See [Emscripten docs](https://emscripten.org/docs/porting/connecting_cpp_and_jav
 
 This flag optimizes the compiled code to make it load and run faster.
 See Emscripten docs on [Optimizing Code](https://emscripten.org/docs/optimizing/Optimizing-Code.html) for details.
-
----
-
-```shell
-	mv src/matrixMultiply.wasm public/matrixMultiply.wasm
-```
-
-Finally, we move the `.wasm` file into the public folder.
-I don't think there's an easy way to do this from the `emcc` command, but it's not like calling `mv` is very hard.
 
 ---
 
